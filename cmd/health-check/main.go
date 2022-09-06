@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/Kodik77rus/health-check/internal/app/pkg/env"
+	"github.com/Kodik77rus/health-check/internal/app/pkg/postgres"
 	"github.com/pkg/errors"
 )
 
@@ -16,9 +17,14 @@ func main() {
 }
 
 func start() error {
-	_, err := env.InitEnv()
+	env, err := env.InitEnv()
 	if err != nil {
-		return errors.Wrap(err, "cannot get env")
+		return errors.Wrap(err, "can't load env")
+	}
+
+	_, err := postgres.InitPostgres(env)
+	if err != nil {
+		return errors.Wrap(err, "can't init postgres")
 	}
 
 	return nil
