@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 
+	healthcheck "github.com/Kodik77rus/health-check/internal/app/health-check"
 	"github.com/Kodik77rus/health-check/internal/app/pkg/env"
 	"github.com/Kodik77rus/health-check/internal/app/pkg/postgres"
 	"github.com/pkg/errors"
@@ -22,9 +25,20 @@ func start() error {
 		return errors.Wrap(err, "can't load env")
 	}
 
-	_, err := postgres.InitPostgres(env)
+	postgres, err := postgres.InitPostgres(env)
 	if err != nil {
 		return errors.Wrap(err, "can't init postgres")
+	}
+
+	mux := &http.ServeMux{}
+
+	healthcheck.InitHealthCheck(postgres, mux)
+
+	if err := http.ListenAndServe(
+		fmt.Sprint(":", env.Port),
+		mux,
+	); err != nil {
+		return err
 	}
 
 	return nil
