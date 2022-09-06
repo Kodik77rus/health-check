@@ -11,6 +11,8 @@ import (
 type Postgres struct {
 	env *env.Env
 	db  *sql.DB
+
+	hostsRepo *HostsRepo
 }
 
 func InitPostgres(env *env.Env) (*Postgres, error) {
@@ -55,4 +57,14 @@ func (p *Postgres) Close() {
 		return
 	}
 	p.db.Close()
+}
+
+func (p *Postgres) HostsRepo() *HostsRepo {
+	if p.hostsRepo != nil {
+		return p.hostsRepo
+	}
+	p.hostsRepo = &HostsRepo{
+		postgres: p,
+	}
+	return p.hostsRepo
 }
