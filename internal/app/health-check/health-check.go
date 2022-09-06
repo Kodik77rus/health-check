@@ -3,8 +3,8 @@ package healthcheck
 import (
 	"net/http"
 
-	"github.com/Kodik77rus/health-check/internal/app/pkg/env"
-	"github.com/Kodik77rus/health-check/internal/app/pkg/postgres"
+	"github.com/Kodik77rus/health-check/internal/pkg/env"
+	"github.com/Kodik77rus/health-check/internal/pkg/postgres"
 )
 
 type HealthCheck struct {

@@ -7,8 +7,8 @@ import (
 	"os"
 
 	healthcheck "github.com/Kodik77rus/health-check/internal/app/health-check"
-	"github.com/Kodik77rus/health-check/internal/app/pkg/env"
-	"github.com/Kodik77rus/health-check/internal/app/pkg/postgres"
+	"github.com/Kodik77rus/health-check/internal/pkg/env"
+	"github.com/Kodik77rus/health-check/internal/pkg/postgres"
 	"github.com/pkg/errors"
 )
 

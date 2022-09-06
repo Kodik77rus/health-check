@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/Kodik77rus/health-check/internal/app/pkg/env"
+	"github.com/Kodik77rus/health-check/internal/pkg/env"
 	_ "github.com/lib/pq"
 )
 
