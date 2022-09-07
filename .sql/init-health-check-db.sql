@@ -1,4 +1,5 @@
 CREATE TABLE IF NOT EXISTS hosts (
-  host inet NOT NULL,
-  ipv6 boolean NOT NULL,
+  ip inet Primary Key,
+  port smallint,
+  ipv6 boolean NOT NULL
 );
