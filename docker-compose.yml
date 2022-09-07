@@ -3,11 +3,16 @@ version: '3.4'
 services:
   health-check:
     image: health-check
+    env_file:
+      - .env
+    restart: always
     build:
       context: .
       dockerfile: ./Dockerfile
     ports:
-      - 8080:8080
+      - $PORT:$PORT
+    links:
+      - db
   db:
     image: postgres
     restart: always
@@ -16,6 +21,6 @@ services:
       POSTGRES_USER: $POSTGRES_USER
       POSTGRES_DB: $POSTGRES_DATABASE
     ports:
-      - 5432:5432
+      - $POSTGRES_PORT:$POSTGRES_PORT
     volumes:
       - ./.sql/init-health-check-db.sql:/docker-entrypoint-initdb.d/init.sql
