@@ -8,7 +8,9 @@ import (
 
 	healthcheck "github.com/Kodik77rus/health-check/internal/app/health-check"
 	"github.com/Kodik77rus/health-check/internal/pkg/env"
+	healthchecker "github.com/Kodik77rus/health-check/internal/pkg/health-checker"
 	"github.com/Kodik77rus/health-check/internal/pkg/postgres"
+	"github.com/Kodik77rus/health-check/internal/pkg/validator"
 	"github.com/pkg/errors"
 )
 
@@ -32,7 +34,12 @@ func start() error {
 
 	mux := &http.ServeMux{}
 
-	healthcheck.InitHealthCheck(postgres, mux)
+	healthcheck.InitHealthCheck(
+		postgres,
+		healthchecker.Healthchecker{},
+		validator.Validator{},
+		mux,
+	)
 
 	if err := http.ListenAndServe(
 		fmt.Sprint(":", env.Port),

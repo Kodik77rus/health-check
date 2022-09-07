@@ -1,8 +1,11 @@
 package models
 
-import "net"
+import (
+	"net"
+)
 
 type Host struct {
-	host   net.IPNet
+	IP     net.IP `json:"ip"`
+	Port   uint16 `json:"port"`
 	IsIpv6 bool
 }
