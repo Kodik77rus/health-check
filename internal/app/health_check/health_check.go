@@ -1,7 +1,6 @@
 package health_check
 
 import (
-	"io/ioutil"
 	"net/http"
 
 	"github.com/Kodik77rus/health-check/internal/pkg/models"
@@ -29,9 +28,7 @@ func InitHealthCheck(
 				return
 			}
 
-			hostsMap := map[string]map[string]string{
-				"hosts": make(map[string]string, len(hosts)),
-			}
+			hostsMap := make(map[string]string, len(hosts))
 
 			// wg := sync.WaitGroup{}
 			// mu := sync.Mutex{}
@@ -56,7 +53,11 @@ func InitHealthCheck(
 
 			// wg.Wait()
 
-			resp, err := utils.JsonMarshal(hostsMap)
+			respMsg := map[string]interface{}{
+				"hosts": hostsMap,
+			}
+
+			resp, err := utils.JsonMarshal(respMsg)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
@@ -65,15 +66,9 @@ func InitHealthCheck(
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(resp)
 		case http.MethodPost:
-			body, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
 			var hostDto models.Host
 
-			if err := utils.JsonUnmarshal(body, &hostDto); err != nil {
+			if err := utils.JsonDecode(r.Body, &hostDto); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -81,11 +76,6 @@ func InitHealthCheck(
 			ip := hostDto.IP.String()
 
 			if ok := validator.IsIP(ip); !ok {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-
-			if ok := validator.IsPort(hostDto.Port); !ok {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -99,15 +89,9 @@ func InitHealthCheck(
 				return
 			}
 		case http.MethodDelete:
-			body, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
 			var hostDto models.Host
 
-			if err := utils.JsonUnmarshal(body, &hostDto); err != nil {
+			if err := utils.JsonDecode(r.Body, &hostDto); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
