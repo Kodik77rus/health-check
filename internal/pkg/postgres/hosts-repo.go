@@ -18,7 +18,7 @@ func (h *HostsRepo) GetAll() ([]models.Host, error) {
 	}
 	defer rows.Close()
 
-	hosts := []models.Host{}
+	hosts := make([]models.Host, 10)
 
 	for rows.Next() {
 		var (
@@ -46,7 +46,6 @@ func (h *HostsRepo) Insert(host models.Host) error {
 		host.IP.String(), host.IsIpv6,
 	)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 	return nil
