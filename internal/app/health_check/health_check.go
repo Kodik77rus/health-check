@@ -16,7 +16,7 @@ type HealthCheck struct{}
 func InitHealthCheck(
 	postgres *postgres.Postgres,
 	socketPinger socket_pinger.SocketPinger,
-	dockerController docker_stats.DockerStat,
+	dockerStat docker_stats.DockerStat,
 	validator validator.Validator,
 	mu *http.ServeMux,
 ) {
@@ -54,7 +54,7 @@ func InitHealthCheck(
 
 			// wg.Wait()
 
-			containersInfo, err := dockerController.GetContainersInfo()
+			containersInfo, err := dockerStat.GetContainersInfo()
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
