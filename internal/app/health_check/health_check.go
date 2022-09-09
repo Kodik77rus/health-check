@@ -14,7 +14,7 @@ type HealthCheck struct{}
 
 func InitHealthCheck(
 	postgres *postgres.Postgres,
-	healthchecker socket_pinger.SocketPinger,
+	socketPinger socket_pinger.SocketPinger,
 	validator validator.Validator,
 	mu *http.ServeMux,
 ) {

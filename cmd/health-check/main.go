@@ -33,7 +33,6 @@ func start() error {
 	}
 
 	mux := &http.ServeMux{}
-
 	health_check.InitHealthCheck(
 		postgres,
 		socket_pinger.SocketPinger{},
