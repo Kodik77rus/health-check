@@ -3,6 +3,7 @@ package health_check
 import (
 	"net/http"
 
+	"github.com/Kodik77rus/health-check/internal/pkg/docker_stats"
 	"github.com/Kodik77rus/health-check/internal/pkg/models"
 	"github.com/Kodik77rus/health-check/internal/pkg/postgres"
 	"github.com/Kodik77rus/health-check/internal/pkg/socket_pinger"
@@ -15,6 +16,7 @@ type HealthCheck struct{}
 func InitHealthCheck(
 	postgres *postgres.Postgres,
 	socketPinger socket_pinger.SocketPinger,
+	dockerController docker_stats.DockerStat,
 	validator validator.Validator,
 	mu *http.ServeMux,
 ) {
@@ -27,7 +29,7 @@ func InitHealthCheck(
 				return
 			}
 
-			hostsMap := make(map[string]string, len(hosts))
+			hostMap := make(map[string]string, len(hosts))
 
 			// wg := sync.WaitGroup{}
 			// mu := sync.Mutex{}
@@ -37,7 +39,7 @@ func InitHealthCheck(
 			// for _, host := range hosts {
 			// 	go func(host models.Host) {
 			// 		defer wg.Done()
-			// 		if err := healthchecker.Ping(); err != nil {
+			// 		if err := socketPinger.Ping(); err != nil {
 			// 			mu.Lock()
 			// 			hostsMap[host.IP.String()] = err.Error()
 			// 			mu.Unlock()
@@ -52,8 +54,25 @@ func InitHealthCheck(
 
 			// wg.Wait()
 
-			respMsg := map[string]interface{}{
-				"hosts": hostsMap,
+			containersInfo, err := dockerController.GetContainersInfo()
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			dockerMap := make(map[string]string, len(containersInfo))
+
+			for _, container := range containersInfo {
+				if container.State != "running" {
+					dockerMap[container.Name] = "not running"
+					continue
+				}
+				dockerMap[container.Name] = container.State
+			}
+
+			respMsg := map[string]map[string]string{
+				"hosts":   hostMap,
+				"dockers": dockerMap,
 			}
 
 			resp, err := utils.JsonMarshal(respMsg)
