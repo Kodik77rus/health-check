@@ -42,7 +42,7 @@ func (h *HostsRepo) GetAll() ([]models.Host, error) {
 
 func (h *HostsRepo) Insert(host models.Host) error {
 	_, err := h.postgres.db.Exec(
-		"insert into hosts (ip, ipv6) values ($1, $2, $3)",
+		"insert into hosts (ip, ipv6) values ($1, $2)",
 		host.IP.String(), host.IsIpv6,
 	)
 	if err != nil {
