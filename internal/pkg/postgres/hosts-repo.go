@@ -18,19 +18,22 @@ func (h *HostsRepo) GetAll() ([]models.Host, error) {
 	}
 	defer rows.Close()
 
-	var ip pgtype.Inet
 	hosts := []models.Host{}
 
 	for rows.Next() {
-		host := models.Host{}
+		var (
+			ip   pgtype.Inet
+			host models.Host
+		)
 
-		err := rows.Scan(&ip, &host.Port, &host.IsIpv6)
+		err := rows.Scan(&ip, &host.IsIpv6)
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
 
 		host.IP = ip.IPNet.IP
+
 		hosts = append(hosts, host)
 	}
 
@@ -39,8 +42,8 @@ func (h *HostsRepo) GetAll() ([]models.Host, error) {
 
 func (h *HostsRepo) Insert(host models.Host) error {
 	_, err := h.postgres.db.Exec(
-		"insert into hosts (ip, port, ipv6) values ($1, $2, $3)",
-		host.IP.String(), host.Port, host.IsIpv6,
+		"insert into hosts (ip, ipv6) values ($1, $2, $3)",
+		host.IP.String(), host.IsIpv6,
 	)
 	if err != nil {
 		fmt.Println(err)

@@ -18,7 +18,6 @@ func InitHealthCheck(
 	validator validator.Validator,
 	mu *http.ServeMux,
 ) {
-
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
