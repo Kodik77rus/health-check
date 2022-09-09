@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"os"
 
-	healthcheck "github.com/Kodik77rus/health-check/internal/app/health-check"
+	"github.com/Kodik77rus/health-check/internal/app/health_check"
 	"github.com/Kodik77rus/health-check/internal/pkg/env"
-	healthchecker "github.com/Kodik77rus/health-check/internal/pkg/health-checker"
 	"github.com/Kodik77rus/health-check/internal/pkg/postgres"
+	"github.com/Kodik77rus/health-check/internal/pkg/socket_pinger"
 	"github.com/Kodik77rus/health-check/internal/pkg/validator"
 	"github.com/pkg/errors"
 )
@@ -34,9 +34,9 @@ func start() error {
 
 	mux := &http.ServeMux{}
 
-	healthcheck.InitHealthCheck(
+	health_check.InitHealthCheck(
 		postgres,
-		healthchecker.Healthchecker{},
+		socket_pinger.SocketPinger{},
 		validator.Validator{},
 		mux,
 	)

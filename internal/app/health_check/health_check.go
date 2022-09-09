@@ -1,13 +1,12 @@
-package healthcheck
+package health_check
 
 import (
 	"io/ioutil"
 	"net/http"
-	"sync"
 
-	healthchecker "github.com/Kodik77rus/health-check/internal/pkg/health-checker"
 	"github.com/Kodik77rus/health-check/internal/pkg/models"
 	"github.com/Kodik77rus/health-check/internal/pkg/postgres"
+	"github.com/Kodik77rus/health-check/internal/pkg/socket_pinger"
 	"github.com/Kodik77rus/health-check/internal/pkg/utils"
 	"github.com/Kodik77rus/health-check/internal/pkg/validator"
 )
@@ -16,7 +15,7 @@ type HealthCheck struct{}
 
 func InitHealthCheck(
 	postgres *postgres.Postgres,
-	healthchecker healthchecker.Healthchecker,
+	healthchecker socket_pinger.SocketPinger,
 	validator validator.Validator,
 	mu *http.ServeMux,
 ) {
@@ -30,31 +29,34 @@ func InitHealthCheck(
 				return
 			}
 
-			respMap := make(map[string]string)
-			wg := sync.WaitGroup{}
-			mu := sync.Mutex{}
-
-			wg.Add(len(hosts))
-
-			for _, host := range hosts {
-				go func(host models.Host) {
-					defer wg.Done()
-					if err := healthchecker.Check(host); err != nil {
-						mu.Lock()
-						respMap[host.IP.String()] = err.Error()
-						mu.Unlock()
-						return
-					}
-
-					mu.Lock()
-					respMap[host.IP.String()] = "ok"
-					mu.Unlock()
-				}(host)
+			hostsMap := map[string]map[string]string{
+				"hosts": make(map[string]string, len(hosts)),
 			}
 
-			wg.Wait()
+			// wg := sync.WaitGroup{}
+			// mu := sync.Mutex{}
 
-			resp, err := utils.JsonMarshal(respMap)
+			// wg.Add(len(hosts))
+
+			// for _, host := range hosts {
+			// 	go func(host models.Host) {
+			// 		defer wg.Done()
+			// 		if err := healthchecker.Ping(); err != nil {
+			// 			mu.Lock()
+			// 			hostsMap[host.IP.String()] = err.Error()
+			// 			mu.Unlock()
+			// 			return
+			// 		}
+
+			// 		mu.Lock()
+			// 		hostsMap[host.IP.String()] = "ok"
+			// 		mu.Unlock()
+			// 	}(host)
+			// }
+
+			// wg.Wait()
+
+			resp, err := utils.JsonMarshal(hostsMap)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
