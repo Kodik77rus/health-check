@@ -11,7 +11,6 @@ import (
 	"github.com/Kodik77rus/health-check/internal/pkg/env"
 	"github.com/Kodik77rus/health-check/internal/pkg/postgres"
 	"github.com/Kodik77rus/health-check/internal/pkg/socket_pinger"
-	"github.com/Kodik77rus/health-check/internal/pkg/validator"
 	"github.com/pkg/errors"
 )
 
@@ -39,7 +38,6 @@ func start() error {
 		postgres,
 		socket_pinger.SocketPinger{},
 		docker_stats.DockerStat{},
-		validator.Validator{},
 		mux,
 	)
 

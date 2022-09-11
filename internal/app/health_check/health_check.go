@@ -8,7 +8,6 @@ import (
 	"github.com/Kodik77rus/health-check/internal/pkg/postgres"
 	"github.com/Kodik77rus/health-check/internal/pkg/socket_pinger"
 	"github.com/Kodik77rus/health-check/internal/pkg/utils"
-	"github.com/Kodik77rus/health-check/internal/pkg/validator"
 )
 
 type HealthCheck struct{}
@@ -17,7 +16,6 @@ func InitHealthCheck(
 	postgres *postgres.Postgres,
 	socketPinger socket_pinger.SocketPinger,
 	dockerStat docker_stats.DockerStat,
-	validator validator.Validator,
 	mu *http.ServeMux,
 ) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -52,11 +50,10 @@ func InitHealthCheck(
 			// 	}(host)
 			// }
 
-			// wg.Wait()
-
 			containersInfo, err := dockerStat.GetContainersInfo()
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				// w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
@@ -69,6 +66,8 @@ func InitHealthCheck(
 				}
 				dockerMap[container.Name] = container.State
 			}
+
+			// wg.Wait()
 
 			respMsg := map[string]map[string]string{
 				"hosts":   hostMap,
@@ -93,12 +92,12 @@ func InitHealthCheck(
 
 			ip := hostDto.IP.String()
 
-			if ok := validator.IsIP(ip); !ok {
+			if ok := utils.IsIP(ip); !ok {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 
-			if ok := validator.IsIPv6(ip); ok {
+			if ok := utils.IsIPv6(ip); ok {
 				hostDto.IsIpv6 = true
 			}
 
