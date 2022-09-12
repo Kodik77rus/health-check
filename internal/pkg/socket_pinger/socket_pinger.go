@@ -19,8 +19,8 @@ var (
 )
 
 type SocketPinger struct {
-	MyIPv6 net.IP
-	MyIPv4 net.IP
+	myIPv6 net.IP
+	myIPv4 net.IP
 }
 
 func InitSocketPinger() (*SocketPinger, error) {
@@ -30,8 +30,8 @@ func InitSocketPinger() (*SocketPinger, error) {
 	}
 
 	return &SocketPinger{
-		MyIPv4: ipv4,
-		MyIPv6: ipv6,
+		myIPv4: ipv4,
+		myIPv6: ipv6,
 	}, nil
 }
 
@@ -97,13 +97,13 @@ func (s *SocketPinger) builSYNTcpPacket(host models.Host) ([]byte, error) {
 
 	if host.IsIpv6 {
 		ipLayer = &layers.IPv6{
-			SrcIP:      s.MyIPv6,
+			SrcIP:      s.myIPv6,
 			DstIP:      host.IP,
 			NextHeader: layers.IPProtocolTCP,
 		}
 	} else {
 		ipLayer = &layers.IPv4{
-			SrcIP:    s.MyIPv4,
+			SrcIP:    s.myIPv4,
 			DstIP:    host.IP,
 			Protocol: layers.IPProtocolTCP,
 		}
