@@ -163,10 +163,21 @@ func createInet4TcpSocket() (int, error) {
 }
 
 func getInternalIPs() (net.IP, net.IP, error) {
-	itf, _ := net.InterfaceByName("eno1") //here your interface
-	item, _ := itf.Addrs()
-	var ipv4 net.IP
-	var ipv6 net.IP
+	var (
+		ipv4 net.IP
+		ipv6 net.IP
+	)
+
+	itf, err := net.InterfaceByName("eno1")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	item, err := itf.Addrs()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	for _, addr := range item {
 		switch v := addr.(type) {
 		case *net.IPNet:
@@ -180,6 +191,7 @@ func getInternalIPs() (net.IP, net.IP, error) {
 			}
 		}
 	}
+
 	if ipv4 != nil && ipv6 != nil {
 		return ipv4, ipv6, nil
 	}
