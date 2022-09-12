@@ -12,6 +12,7 @@ import (
 	"github.com/Kodik77rus/health-check/internal/pkg/postgres"
 	"github.com/Kodik77rus/health-check/internal/pkg/socket_pinger"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 )
 
 func main() {
@@ -26,6 +27,8 @@ func start() error {
 	if err != nil {
 		return errors.Wrap(err, "can't load env")
 	}
+
+	initZeroLogger(env)
 
 	postgres, err := postgres.InitPostgres(env)
 	if err != nil {
@@ -54,4 +57,15 @@ func start() error {
 	}
 
 	return nil
+}
+
+func initZeroLogger(env *env.Env) {
+	zerolog.TimeFieldFormat = "2006-01-02 15:04:05.999"
+
+	lvl, err := zerolog.ParseLevel(env.Log_LVL)
+	if err != nil {
+		log.Println("init zero logger : error parse config level", "err: ", err)
+		lvl = zerolog.DebugLevel
+	}
+	zerolog.SetGlobalLevel(lvl)
 }

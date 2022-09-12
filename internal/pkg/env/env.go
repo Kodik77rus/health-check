@@ -11,6 +11,8 @@ import (
 type Env struct {
 	Port int
 
+	Log_LVL string
+
 	Postgres_Host     string
 	Postgres_Port     string
 	Postgres_User     string
@@ -25,6 +27,11 @@ func InitEnv() (*Env, error) {
 	var err error
 
 	env.Port, err = getEnvInt("PORT")
+	if err != nil {
+		return nil, err
+	}
+
+	env.Log_LVL, err = getEnv("Log_LVL")
 	if err != nil {
 		return nil, err
 	}
