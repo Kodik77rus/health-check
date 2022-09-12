@@ -3,6 +3,7 @@ module github.com/Kodik77rus/health-check
 go 1.18
 
 require (
+	github.com/google/gopacket v1.1.19
 	github.com/jackc/pgtype v1.12.0
 	github.com/joho/godotenv v1.4.0
 	github.com/lib/pq v1.10.7

@@ -4,6 +4,6 @@ build:
 clean:
 	rm -f /bin/health-check
 run:
-	./bin/health-check
+	sudo ./bin/health-check
 dev:
 	make build && make run

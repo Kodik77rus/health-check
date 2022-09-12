@@ -4,20 +4,38 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
 	"syscall"
 	"time"
 
 	"github.com/Kodik77rus/health-check/internal/pkg/models"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 )
 
 var (
 	badIp = errors.New("badIp")
 )
 
-type SocketPinger struct{}
+type SocketPinger struct {
+	MyIPv6 net.IP
+	MyIPv4 net.IP
+}
 
-func (s SocketPinger) Ping(host models.Host) error {
+func InitSocketPinger() (*SocketPinger, error) {
+	ipv4, ipv6, err := getInternalIPs()
+	if err != nil {
+		return nil, err
+	}
+
+	return &SocketPinger{
+		MyIPv4: ipv4,
+		MyIPv6: ipv6,
+	}, nil
+}
+
+func (s *SocketPinger) Ping(host models.Host) error {
 	socket, err := createSocket(host.IsIpv6)
 	if err != nil {
 		return err
@@ -42,19 +60,26 @@ func (s SocketPinger) Ping(host models.Host) error {
 			return
 		}
 
-		_, err := syscall.Write(socket, []byte("yellow"))
+		synPacket, err := s.builSYNTcpPacket(host)
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		_, err = syscall.Write(socket, synPacket)
 		if err != nil {
 			errChan <- err
 			return
 		}
 
 		buff := make([]byte, 1024)
-		numRead, err := syscall.Read(socket, buff)
+		msg, err := syscall.Read(socket, buff)
 		if err != nil {
 			errChan <- err
 			return
 		}
-		fmt.Printf("% X\n", string(buff[0:numRead]))
+		fmt.Printf("% X\n", string(buff[0:msg]))
+		errChan <- nil
 	}()
 
 	for {
@@ -65,6 +90,42 @@ func (s SocketPinger) Ping(host models.Host) error {
 			return err
 		}
 	}
+}
+
+func (s *SocketPinger) builSYNTcpPacket(host models.Host) ([]byte, error) {
+	var ipLayer gopacket.SerializableLayer
+
+	if host.IsIpv6 {
+		ipLayer = &layers.IPv6{
+			SrcIP:      s.MyIPv6,
+			DstIP:      host.IP,
+			NextHeader: layers.IPProtocolTCP,
+		}
+	} else {
+		ipLayer = &layers.IPv4{
+			SrcIP:    s.MyIPv4,
+			DstIP:    host.IP,
+			Protocol: layers.IPProtocolTCP,
+		}
+	}
+
+	tcpLayer := layers.TCP{
+		DstPort: layers.TCPPort(host.Port),
+		SYN:     true,
+	}
+
+	// tcpLayer.SetNetworkLayerForChecksum(gopacket.SerializableLayer(ipLayer))
+
+	buf := gopacket.NewSerializeBuffer()
+
+	opts := gopacket.SerializeOptions{}
+
+	err := gopacket.SerializeLayers(buf, opts, ipLayer, &tcpLayer)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
 
 func createSocket(Ipv6 bool) (int, error) {
@@ -94,9 +155,33 @@ func initRemoteSockInetAddr(host models.Host) (syscall.Sockaddr, error) {
 }
 
 func createInet6TcpSocket() (int, error) {
-	return syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+	return syscall.Socket(syscall.AF_INET6, syscall.SOCK_RAW, syscall.IPPROTO_TCP)
 }
 
 func createInet4TcpSocket() (int, error) {
-	return syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+	return syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_TCP)
+}
+
+func getInternalIPs() (net.IP, net.IP, error) {
+	itf, _ := net.InterfaceByName("eno1") //here your interface
+	item, _ := itf.Addrs()
+	var ipv4 net.IP
+	var ipv6 net.IP
+	for _, addr := range item {
+		switch v := addr.(type) {
+		case *net.IPNet:
+			if !v.IP.IsLoopback() {
+				if v.IP.To4() != nil {
+					ipv4 = v.IP
+				}
+				if v.IP.To16() != nil {
+					ipv6 = v.IP
+				}
+			}
+		}
+	}
+	if ipv4 != nil && ipv6 != nil {
+		return ipv4, ipv6, nil
+	}
+	return nil, nil, errors.New("Can't load nternal IPs")
 }
