@@ -1,10 +1,9 @@
 package postgres
 
 import (
-	"fmt"
-
 	"github.com/Kodik77rus/health-check/internal/pkg/models"
 	"github.com/jackc/pgtype"
+	"github.com/rs/zerolog/log"
 )
 
 type HostsRepo struct {
@@ -26,9 +25,9 @@ func (h *HostsRepo) GetAll() ([]models.Host, error) {
 			host models.Host
 		)
 
-		err := rows.Scan(&ip, &host.IsIpv6)
+		err := rows.Scan(&ip, &host.Port, &host.IsIpv6)
 		if err != nil {
-			fmt.Println(err)
+			log.Error().Err(err).Msg("postgres scan hosts err")
 			continue
 		}
 
@@ -42,8 +41,8 @@ func (h *HostsRepo) GetAll() ([]models.Host, error) {
 
 func (h *HostsRepo) Insert(host models.Host) error {
 	_, err := h.postgres.db.Exec(
-		"insert into hosts (ip, ipv6) values ($1, $2)",
-		host.IP.String(), host.IsIpv6,
+		"insert into hosts (ip, port, ipv6) values ($1, $2, $3)",
+		host.IP.String(), host.Port, host.IsIpv6,
 	)
 	if err != nil {
 		return err

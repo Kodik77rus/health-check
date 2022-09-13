@@ -2,8 +2,9 @@ package env
 
 import (
 	"os"
-	"strconv"
+	"time"
 
+	"github.com/Kodik77rus/health-check/internal/pkg/utils"
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 )
@@ -18,6 +19,8 @@ type Env struct {
 	Postgres_User     string
 	Postgres_Password string
 	Postgres_Dbname   string
+
+	PING_TIMEOUT time.Duration
 }
 
 func InitEnv() (*Env, error) {
@@ -61,6 +64,11 @@ func InitEnv() (*Env, error) {
 		return nil, err
 	}
 
+	env.PING_TIMEOUT, err = getEnvDuration("PING_TIMEOUT")
+	if err != nil {
+		return nil, err
+	}
+
 	return &env, err
 }
 
@@ -79,9 +87,21 @@ func getEnvInt(path string) (int, error) {
 		return 0, err
 	}
 
-	intEnv, err := strconv.Atoi(env)
+	intEnv, err := utils.StrToInt(env)
 	if err != nil {
 		return 0, errors.Errorf("%s env variable is not int convertible", path)
 	}
 	return intEnv, nil
+}
+
+func getEnvDuration(path string) (time.Duration, error) {
+	env, err := getEnv(path)
+	if err != nil {
+		return 0, err
+	}
+	durationEnv, err := utils.ParseDuration(env)
+	if err != nil {
+		return 0, err
+	}
+	return durationEnv, nil
 }

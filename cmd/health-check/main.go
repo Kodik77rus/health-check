@@ -37,7 +37,7 @@ func start() error {
 
 	mux := &http.ServeMux{}
 
-	socketPinger, err := socket_pinger.InitSocketPinger()
+	socketPinger, err := socket_pinger.InitSocketPinger(env)
 	if err != nil {
 		return errors.Wrap(err, "can't init socket pinger")
 	}
