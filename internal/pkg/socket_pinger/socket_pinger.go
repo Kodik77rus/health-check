@@ -13,13 +13,20 @@ import (
 	"github.com/pkg/errors"
 )
 
-var notSyncErr = errors.New("host not sync")
+var (
+	syncHostErr              = errors.New("host not sync")
+	unsupportedPacketTypeErr = errors.New("unsupported packet type")
+	notSockaddrInet6Err      = errors.New("not sockaddrInet6")
+	notSockaddrInet4Err      = errors.New("not sockaddrInet4")
+)
 
 type SocketPinger struct {
-	socketFd int
-	tv       *syscall.Timeval
-	myIPv6   [16]byte
-	myIPv4   [4]byte
+	socketFd   int
+	myIPv6     net.IP
+	myIPv4     net.IP
+	myByteIpv4 [4]byte
+	myByteIpv6 [16]byte
+	tv         *syscall.Timeval
 }
 
 func InitSocketPinger(env *env.Env) (*SocketPinger, error) {
@@ -37,30 +44,39 @@ func InitSocketPinger(env *env.Env) (*SocketPinger, error) {
 	}
 	tv := syscall.NsecToTimeval(env.PING_TIMEOUT.Nanoseconds())
 	return &SocketPinger{
-		myIPv4: myIpv6.As4(),
-		myIPv6: myIpv4.As16(),
-		tv:     &tv,
+		myIPv4:     ipv4,
+		myIPv6:     ipv6,
+		myByteIpv4: myIpv4.As4(),
+		myByteIpv6: myIpv6.As16(),
+		tv:         &tv,
 	}, nil
 }
 
 func (s *SocketPinger) Ping(host models.Host) error {
+	syscall.ForkLock.RLock()
 	if err := s.createSocket(host.IsIpv6); err != nil {
 		return err
 	}
 	defer s.closeSocket()
+	syscall.ForkLock.RUnlock()
 
 	if err := s.bindSocket(host.IsIpv6); err != nil {
 		return err
 	}
 
-	remoteAddr, err := initRemoteSockInetAddr(host)
+	remoteAddr, err := buildRemoteSockInetAddr(host)
 	if err != nil {
 		return err
 	}
 
-	if err := s.send(
+	tcpSynPacket, err := s.buildSYNPacket(host)
+	if err != nil {
+		return err
+	}
+
+	if err := s.sendWithTimeout(
 		remoteAddr,
-		buildSYNPacket(host),
+		tcpSynPacket,
 		host.IsIpv6,
 	); err != nil {
 		return err
@@ -71,12 +87,12 @@ func (s *SocketPinger) Ping(host models.Host) error {
 		return err
 	}
 
-	tcpPocket, err := decode(msg)
+	TCPpacket, err := decodeTCPPacket(msg)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed tcp pocket")
 	}
 
-	return checkSync(tcpPocket)
+	return checkSync(TCPpacket)
 }
 
 func (s *SocketPinger) createSocket(Ipv6 bool) error {
@@ -97,24 +113,79 @@ func (s *SocketPinger) createSocket(Ipv6 bool) error {
 	return nil
 }
 
-func (s *SocketPinger) closeSocket() error {
-	return syscall.Close(s.socketFd)
-}
-
 func (s *SocketPinger) bindSocket(Ipv6 bool) error {
 	if Ipv6 {
 		return syscall.Bind(s.socketFd, &syscall.SockaddrInet6{
 			Port: 0,
-			Addr: s.myIPv6,
+			Addr: s.myByteIpv6,
 		})
 	}
 	return syscall.Bind(s.socketFd, &syscall.SockaddrInet4{
 		Port: 0,
-		Addr: s.myIPv4,
+		Addr: s.myByteIpv4,
 	})
 }
 
-func (s *SocketPinger) send(remoteSockAddr syscall.Sockaddr, tcpPacket []byte, Ipv6 bool) error {
+func (s *SocketPinger) buildSYNPacket(host models.Host) ([]byte, error) {
+	var (
+		ethL layers.Ethernet
+		tcL  layers.TCP
+		ipL  gopacket.SerializableLayer
+	)
+
+	socketAddr, err := syscall.Getsockname(s.socketFd)
+	if err != nil {
+		return nil, err
+	}
+
+	if host.IsIpv6 {
+		sockAddr, ok := socketAddr.(*syscall.SockaddrInet6)
+		if !ok {
+			return nil, notSockaddrInet6Err
+		}
+		ethL = layers.Ethernet{
+			EthernetType: layers.EthernetTypeIPv6,
+		}
+		ipL = &layers.IPv6{
+			SrcIP: s.myIPv6,
+			DstIP: host.IP,
+		}
+		tcL = layers.TCP{
+			SrcPort: layers.TCPPort(sockAddr.Port),
+			DstPort: layers.TCPPort(host.Port),
+		}
+	} else {
+		sockAddr, ok := socketAddr.(*syscall.SockaddrInet4)
+		if !ok {
+			return nil, notSockaddrInet4Err
+		}
+		ethL = layers.Ethernet{
+			EthernetType: layers.EthernetTypeIPv4,
+		}
+		ipL = &layers.IPv4{
+			SrcIP: s.myIPv4,
+			DstIP: host.IP,
+		}
+		tcL = layers.TCP{
+			SrcPort: layers.TCPPort(sockAddr.Port),
+			DstPort: layers.TCPPort(host.Port),
+		}
+	}
+
+	options := gopacket.SerializeOptions{
+		FixLengths:       true,
+		ComputeChecksums: true,
+	}
+	buffer := gopacket.NewSerializeBuffer()
+	gopacket.SerializeLayers(buffer, options,
+		&ethL,
+		ipL,
+		&tcL,
+	)
+	return buffer.Bytes(), nil
+}
+
+func (s *SocketPinger) sendWithTimeout(remoteSockAddr syscall.Sockaddr, tcpPacket []byte, Ipv6 bool) error {
 	if err := syscall.SetsockoptTimeval(
 		s.socketFd,
 		syscall.SOL_SOCKET,
@@ -135,21 +206,8 @@ func (s *SocketPinger) read() ([]byte, error) {
 	return buf, nil
 }
 
-func initRemoteSockInetAddr(host models.Host) (syscall.Sockaddr, error) {
-	addr, ok := netip.AddrFromSlice(host.IP)
-	if !ok {
-		return nil, errors.Errorf("remote host IPv6 %v slice's length is not 4 or 16", addr)
-	}
-	if host.IsIpv6 {
-		return &syscall.SockaddrInet6{
-			Port: host.Port,
-			Addr: addr.As16(),
-		}, nil
-	}
-	return &syscall.SockaddrInet4{
-		Port: host.Port,
-		Addr: addr.As4(),
-	}, nil
+func (s *SocketPinger) closeSocket() error {
+	return syscall.Close(s.socketFd)
 }
 
 func getInternalIPs() (net.IP, net.IP, error) {
@@ -189,6 +247,23 @@ func getInternalIPs() (net.IP, net.IP, error) {
 	return nil, nil, errors.New("Can't load internal IPs")
 }
 
+func buildRemoteSockInetAddr(host models.Host) (syscall.Sockaddr, error) {
+	addr, ok := netip.AddrFromSlice(host.IP)
+	if !ok {
+		return nil, errors.Errorf("remote host IPv6 %v slice's length is not 4 or 16", addr)
+	}
+	if host.IsIpv6 {
+		return &syscall.SockaddrInet6{
+			Port: host.Port,
+			Addr: addr.As16(),
+		}, nil
+	}
+	return &syscall.SockaddrInet4{
+		Port: host.Port,
+		Addr: addr.As4(),
+	}, nil
+}
+
 func createInet6TcpSocket() (int, error) {
 	return syscall.Socket(syscall.AF_INET6, syscall.SOCK_RAW, syscall.IPPROTO_TCP)
 }
@@ -197,36 +272,21 @@ func createInet4TcpSocket() (int, error) {
 	return syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_TCP)
 }
 
-func buildSYNPacket(host models.Host) []byte {
-	options := gopacket.SerializeOptions{
-		FixLengths:       true,
-		ComputeChecksums: true,
+func decodeTCPPacket(packetData []byte) (*layers.TCP, error) {
+	packet := gopacket.NewPacket(packetData, layers.LayerTypeTCP, gopacket.Lazy)
+	if tcpLayer := packet.Layer(layers.LayerTypeTCP); tcpLayer != nil {
+		tcp, ok := tcpLayer.(*layers.TCP)
+		if !ok {
+			return nil, unsupportedPacketTypeErr
+		}
+		return tcp, nil
 	}
-	buffer := gopacket.NewSerializeBuffer()
-	gopacket.SerializeLayers(buffer, options,
-		&layers.Ethernet{},
-		&layers.IPv4{},
-		&layers.TCP{
-			SYN: true,
-		},
-	)
-	return buffer.Bytes()
+	return nil, unsupportedPacketTypeErr
 }
 
-func decode(msg []byte) (layers.TCP, error) {
-	var (
-		tcp layers.TCP
-		df  gopacket.DecodeFeedback
-	)
-	if err := tcp.DecodeFromBytes(msg, df); err != nil {
-		return tcp, err
-	}
-	return tcp, nil
-}
-
-func checkSync(tcp layers.TCP) error {
+func checkSync(tcp *layers.TCP) error {
 	if tcp.SYN && tcp.ACK {
 		return nil
 	}
-	return notSyncErr
+	return syncHostErr
 }
