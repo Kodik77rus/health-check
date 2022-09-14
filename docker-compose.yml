@@ -13,6 +13,8 @@ services:
       - $PORT:$PORT
     links:
       - db
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
   db:
     image: postgres
     restart: always
