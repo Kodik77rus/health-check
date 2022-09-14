@@ -37,10 +37,7 @@ func start() error {
 
 	mux := &http.ServeMux{}
 
-	socketPinger, err := socket_pinger.InitSocketPinger(env)
-	if err != nil {
-		return errors.Wrap(err, "can't init socket pinger")
-	}
+	socketPinger := socket_pinger.InitSocketPinger(env)
 
 	health_check.InitHealthCheck(
 		postgres,
