@@ -41,7 +41,7 @@ func InitHealthCheck(
 
 				//make something like throttler
 				for _, host := range hosts {
-					go func(host models.Host) {
+					go func(host *models.Host) {
 						defer wg.Done()
 						if err := socketPinger.Ping(host); err != nil {
 							log.Debug().Err(err).Interface("host", host).Msg("ping host error")

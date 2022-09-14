@@ -10,14 +10,14 @@ type HostsRepo struct {
 	postgres *Postgres
 }
 
-func (h *HostsRepo) GetAll() ([]models.Host, error) {
+func (h *HostsRepo) GetAll() ([]*models.Host, error) {
 	rows, err := h.postgres.db.Query("select * from hosts")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	hosts := make([]models.Host, 0, 10)
+	hosts := make([]*models.Host, 0, 10)
 
 	for rows.Next() {
 		var (
@@ -33,7 +33,7 @@ func (h *HostsRepo) GetAll() ([]models.Host, error) {
 
 		host.IP = ip.IPNet.IP
 
-		hosts = append(hosts, host)
+		hosts = append(hosts, &host)
 	}
 
 	return hosts, nil

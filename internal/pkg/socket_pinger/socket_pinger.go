@@ -52,7 +52,7 @@ func InitSocketPinger(env *env.Env) (*SocketPinger, error) {
 	}, nil
 }
 
-func (s *SocketPinger) Ping(host models.Host) error {
+func (s *SocketPinger) Ping(host *models.Host) error {
 	syscall.ForkLock.RLock()
 	if err := s.createSocket(host.IsIpv6); err != nil {
 		return err
@@ -126,7 +126,7 @@ func (s *SocketPinger) bindSocket(Ipv6 bool) error {
 	})
 }
 
-func (s *SocketPinger) buildSYNPacket(host models.Host) ([]byte, error) {
+func (s *SocketPinger) buildSYNPacket(host *models.Host) ([]byte, error) {
 	var (
 		ethL layers.Ethernet
 		tcL  layers.TCP
@@ -247,7 +247,7 @@ func getInternalIPs() (net.IP, net.IP, error) {
 	return nil, nil, errors.New("Can't load internal IPs")
 }
 
-func buildRemoteSockInetAddr(host models.Host) (syscall.Sockaddr, error) {
+func buildRemoteSockInetAddr(host *models.Host) (syscall.Sockaddr, error) {
 	addr, ok := netip.AddrFromSlice(host.IP)
 	if !ok {
 		return nil, errors.Errorf("remote host IPv6 %v slice's length is not 4 or 16", addr)
