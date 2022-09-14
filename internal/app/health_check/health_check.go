@@ -42,7 +42,7 @@ func InitHealthCheck(
 				wg.Add(hostsLen)
 
 				for _, host := range hosts {
-					time.Sleep(500 * time.Millisecond)
+					time.Sleep(5 * time.Second)
 					go func(host *models.Host) {
 						defer wg.Done()
 						if err := socketPinger.Ping(host); err != nil {
