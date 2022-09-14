@@ -33,8 +33,8 @@ func (s *SocketPinger) Ping(host *models.Host) error {
 	if err := s.createSocket(host.IsIpv6); err != nil {
 		return err
 	}
-	defer s.closeSocket()
 	syscall.ForkLock.RUnlock()
+	defer s.closeSocket()
 
 	if err := s.bindSocket(host.IsIpv6); err != nil {
 		return err

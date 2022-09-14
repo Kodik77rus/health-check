@@ -23,13 +23,12 @@ type DockerStat struct{}
 func (d DockerStat) GetContainersInfo() ([]*ContainerInfo, error) {
 	var dialer net.Dialer
 
-	x := &http.Transport{
-		DialContext: func(ctx context.Context, net, addr string) (net.Conn, error) {
-			return dialer.DialContext(ctx, "unix", "/var/run/docker.sock")
-		},
-	}
-
-	c := &http.Client{Transport: x}
+	c := &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, net, addr string) (net.Conn, error) {
+				return dialer.DialContext(ctx, "unix", "/var/run/docker.sock")
+			},
+		}}
 
 	u := &url.URL{
 		Scheme: "http",

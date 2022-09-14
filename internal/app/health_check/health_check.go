@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/Kodik77rus/health-check/internal/pkg/docker_stats"
 	"github.com/Kodik77rus/health-check/internal/pkg/models"
@@ -42,7 +41,6 @@ func InitHealthCheck(
 				wg.Add(hostsLen)
 
 				for _, host := range hosts {
-					time.Sleep(5 * time.Second)
 					go func(host *models.Host) {
 						defer wg.Done()
 						if err := socketPinger.Ping(host); err != nil {
