@@ -76,9 +76,8 @@ func getEnv(path string) (string, error) {
 	env := os.Getenv(path)
 	if env != "" {
 		return env, nil
-	} else {
-		return "", errors.Errorf("%s env variable is not defined", path)
 	}
+	return "", errors.Errorf("%s env variable is not defined", path)
 }
 
 func getEnvInt(path string) (int, error) {
