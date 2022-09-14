@@ -30,9 +30,7 @@ func (h *HostsRepo) GetAll() ([]*models.Host, error) {
 			log.Error().Err(err).Msg("postgres scan hosts err")
 			continue
 		}
-
 		host.IP = ip.IPNet.IP
-
 		hosts = append(hosts, &host)
 	}
 
@@ -40,11 +38,10 @@ func (h *HostsRepo) GetAll() ([]*models.Host, error) {
 }
 
 func (h *HostsRepo) Insert(host models.Host) error {
-	_, err := h.postgres.db.Exec(
+	if _, err := h.postgres.db.Exec(
 		"insert into hosts (ip, port, ipv6) values ($1, $2, $3)",
 		host.IP.String(), host.Port, host.IsIpv6,
-	)
-	if err != nil {
+	); err != nil {
 		return err
 	}
 	return nil

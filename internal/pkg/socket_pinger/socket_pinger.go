@@ -13,9 +13,9 @@ import (
 
 var (
 	syncHostErr              = errors.New("host not sync")
-	unsupportedPacketTypeErr = errors.New("unsupported packet type")
 	notSockaddrInet6Err      = errors.New("not sockaddrInet6")
 	notSockaddrInet4Err      = errors.New("not sockaddrInet4")
+	unsupportedPacketTypeErr = errors.New("unsupported packet type")
 )
 
 type SocketPinger struct {
@@ -36,9 +36,11 @@ func (s *SocketPinger) Ping(host *models.Host) error {
 	syscall.ForkLock.RUnlock()
 	defer s.closeSocket()
 
+	syscall.ForkLock.RLock()
 	if err := s.bindSocket(host.IsIpv6); err != nil {
 		return err
 	}
+	syscall.ForkLock.RUnlock()
 
 	remoteAddr, err := buildRemoteSockInetAddr(host)
 	if err != nil {
@@ -67,6 +69,7 @@ func (s *SocketPinger) Ping(host *models.Host) error {
 	if err != nil {
 		return errors.Wrap(err, "failed decode tcp pocket")
 	}
+
 	return checkSync(sd)
 }
 
@@ -140,7 +143,6 @@ func (s *SocketPinger) buildSYNPacket(host *models.Host) ([]byte, error) {
 			DstPort: layers.TCPPort(host.Port),
 		}
 	}
-
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,

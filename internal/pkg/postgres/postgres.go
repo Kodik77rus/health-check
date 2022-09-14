@@ -16,15 +16,11 @@ type Postgres struct {
 }
 
 func InitPostgres(env *env.Env) (*Postgres, error) {
-	db := &Postgres{
-		env: env,
-	}
-
+	db := &Postgres{env: env}
 	err := db.connect()
 	if err != nil {
 		return nil, err
 	}
-
 	return db, nil
 }
 
@@ -43,11 +39,9 @@ func (p *Postgres) connect() error {
 	if err != nil {
 		return err
 	}
-
 	if err := conn.Ping(); err != nil {
 		return err
 	}
-
 	p.db = conn
 	return nil
 }
