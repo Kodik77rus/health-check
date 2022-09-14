@@ -17,7 +17,7 @@ func (h *HostsRepo) GetAll() ([]models.Host, error) {
 	}
 	defer rows.Close()
 
-	hosts := make([]models.Host, 10)
+	hosts := make([]models.Host, 0, 10)
 
 	for rows.Next() {
 		var (

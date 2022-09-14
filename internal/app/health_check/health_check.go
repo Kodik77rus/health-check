@@ -39,7 +39,7 @@ func InitHealthCheck(
 
 				wg.Add(hostsLen)
 
-				//make something throttler
+				//make something like throttler
 				for _, host := range hosts {
 					go func(host models.Host) {
 						defer wg.Done()
