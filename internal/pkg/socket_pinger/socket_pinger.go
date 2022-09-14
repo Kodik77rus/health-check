@@ -21,34 +21,34 @@ var (
 )
 
 type SocketPinger struct {
-	socketFd   int
-	myIPv6     net.IP
-	myIPv4     net.IP
-	myByteIpv4 [4]byte
-	myByteIpv6 [16]byte
-	tv         *syscall.Timeval
+	socketFd int
+	srcIPv6  net.IP
+	srcIPv4  net.IP
+	byteIpv4 [4]byte
+	byteIpv6 [16]byte
+	tv       *syscall.Timeval
 }
 
 func InitSocketPinger(env *env.Env) (*SocketPinger, error) {
-	ipv4, ipv6, err := getInternalIPs()
-	if err != nil {
-		return nil, err
-	}
-	myIpv4, ok := utils.AddrFromSlice(ipv4)
+	defaultIpv4 := net.ParseIP("0.0.0.0")
+	defaultIpv6 := net.ParseIP("::")
+
+	srcIpv4, ok := utils.AddrFromSlice(defaultIpv4)
 	if !ok {
-		return nil, errors.Errorf("IPv4 slice's length is not 4", ipv4)
+		return nil, errors.Errorf("IPv4 slice's length is not 4", srcIpv4)
 	}
-	myIpv6, ok := utils.AddrFromSlice(ipv6)
+	srcIpv6, ok := utils.AddrFromSlice(defaultIpv6)
 	if !ok {
-		return nil, errors.Errorf("IPv6 slice's length is not 16", ipv6)
+		return nil, errors.Errorf("IPv6 slice's length is not 16", srcIpv6)
 	}
+
 	tv := syscall.NsecToTimeval(env.PING_TIMEOUT.Nanoseconds())
 	return &SocketPinger{
-		myIPv4:     ipv4,
-		myIPv6:     ipv6,
-		myByteIpv4: myIpv4.As4(),
-		myByteIpv6: myIpv6.As16(),
-		tv:         &tv,
+		srcIPv4:  defaultIpv4,
+		srcIPv6:  defaultIpv6,
+		byteIpv4: srcIpv4.As4(),
+		byteIpv6: srcIpv6.As16(),
+		tv:       &tv,
 	}, nil
 }
 
@@ -87,12 +87,11 @@ func (s *SocketPinger) Ping(host *models.Host) error {
 		return err
 	}
 
-	TCPpacket, err := decodeTCPPacket(msg)
+	sd, err := decodeTCPPacket(msg)
 	if err != nil {
-		return errors.Wrap(err, "failed tcp pocket")
+		return errors.Wrap(err, "failed decode tcp pocket")
 	}
-
-	return checkSync(TCPpacket)
+	return checkSync(sd)
 }
 
 func (s *SocketPinger) createSocket(Ipv6 bool) error {
@@ -117,12 +116,12 @@ func (s *SocketPinger) bindSocket(Ipv6 bool) error {
 	if Ipv6 {
 		return syscall.Bind(s.socketFd, &syscall.SockaddrInet6{
 			Port: 0,
-			Addr: s.myByteIpv6,
+			Addr: s.byteIpv6,
 		})
 	}
 	return syscall.Bind(s.socketFd, &syscall.SockaddrInet4{
 		Port: 0,
-		Addr: s.myByteIpv4,
+		Addr: s.byteIpv4,
 	})
 }
 
@@ -147,7 +146,7 @@ func (s *SocketPinger) buildSYNPacket(host *models.Host) ([]byte, error) {
 			EthernetType: layers.EthernetTypeIPv6,
 		}
 		ipL = &layers.IPv6{
-			SrcIP: s.myIPv6,
+			SrcIP: s.srcIPv6,
 			DstIP: host.IP,
 		}
 		tcL = layers.TCP{
@@ -163,7 +162,7 @@ func (s *SocketPinger) buildSYNPacket(host *models.Host) ([]byte, error) {
 			EthernetType: layers.EthernetTypeIPv4,
 		}
 		ipL = &layers.IPv4{
-			SrcIP: s.myIPv4,
+			SrcIP: s.srcIPv4,
 			DstIP: host.IP,
 		}
 		tcL = layers.TCP{
@@ -208,43 +207,6 @@ func (s *SocketPinger) read() ([]byte, error) {
 
 func (s *SocketPinger) closeSocket() error {
 	return syscall.Close(s.socketFd)
-}
-
-func getInternalIPs() (net.IP, net.IP, error) {
-	var (
-		ipv4 net.IP
-		ipv6 net.IP
-	)
-
-	itf, err := net.InterfaceByName("eno1")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	item, err := itf.Addrs()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	for _, addr := range item {
-		switch v := addr.(type) {
-		case *net.IPNet:
-			if !v.IP.IsLoopback() {
-				if v.IP.To4() != nil {
-					ipv4 = v.IP
-				}
-				if v.IP.To16() != nil {
-					ipv6 = v.IP
-				}
-			}
-		}
-	}
-
-	if ipv4 != nil && ipv6 != nil {
-		return ipv4, ipv6, nil
-	}
-
-	return nil, nil, errors.New("Can't load internal IPs")
 }
 
 func buildRemoteSockInetAddr(host *models.Host) (syscall.Sockaddr, error) {
