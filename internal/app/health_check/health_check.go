@@ -1,8 +1,10 @@
 package health_check
 
 import (
+	"io/ioutil"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/Kodik77rus/health-check/internal/pkg/docker_stats"
 	"github.com/Kodik77rus/health-check/internal/pkg/models"
@@ -39,8 +41,8 @@ func InitHealthCheck(
 
 				wg.Add(hostsLen)
 
-				//make something like throttler
 				for _, host := range hosts {
+					time.Sleep(500 * time.Millisecond)
 					go func(host *models.Host) {
 						defer wg.Done()
 						if err := socketPinger.Ping(host); err != nil {
@@ -70,10 +72,11 @@ func InitHealthCheck(
 
 			for _, container := range containersInfo {
 				if container.State != "running" {
-					dockerMap[container.Name] = "not running"
+					log.Error().Interface("docker container", container).Msg("container not working")
+					dockerMap[container.Name[0]] = "not running"
 					continue
 				}
-				dockerMap[container.Name] = container.State
+				dockerMap[container.Name[0]] = container.State
 			}
 
 			respMsg := map[string]map[string]string{
@@ -91,9 +94,22 @@ func InitHealthCheck(
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(resp)
 		case http.MethodPost:
+			body, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				log.Error().Err(err).Msg("read body err")
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			if ok := utils.IsValidJson(body); !ok {
+				log.Debug().Msg("invalid json object")
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
 			var hostDto models.Host
 
-			if err := utils.JsonDecode(r.Body, &hostDto); err != nil {
+			if err := utils.JsonUnmarshal(body, &hostDto); err != nil {
 				log.Error().Err(err).Msg("can't unmarshal request body")
 				w.WriteHeader(http.StatusInternalServerError)
 				return
@@ -117,9 +133,22 @@ func InitHealthCheck(
 				return
 			}
 		case http.MethodDelete:
+			body, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				log.Error().Err(err).Msg("read body err")
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			if ok := utils.IsValidJson(body); !ok {
+				log.Debug().Msg("invalid json object")
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
 			var hostDto models.Host
 
-			if err := utils.JsonDecode(r.Body, &hostDto); err != nil {
+			if err := utils.JsonUnmarshal(body, &hostDto); err != nil {
 				log.Error().Err(err).Msg("can't unmarshal request body")
 				w.WriteHeader(http.StatusInternalServerError)
 				return
