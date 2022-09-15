@@ -65,12 +65,12 @@ func (s *SocketPinger) Ping(host *models.Host) error {
 		return err
 	}
 
-	sd, err := decodeTCPPacket(msg)
+	tcpPacket, err := decodeTCPPacket(msg)
 	if err != nil {
 		return errors.Wrap(err, "failed decode tcp pocket")
 	}
 
-	return checkSync(sd)
+	return checkSync(tcpPacket)
 }
 
 func (s *SocketPinger) createSocket(Ipv6 bool) error {
@@ -184,7 +184,7 @@ func (s *SocketPinger) closeSocket() error {
 func buildRemoteSockInetAddr(host *models.Host) (syscall.Sockaddr, error) {
 	addr, ok := netip.AddrFromSlice(host.IP)
 	if !ok {
-		return nil, errors.Errorf("remote host IPv6 %v slice's length is not 4 or 16", addr)
+		return nil, errors.Errorf("remote host %v slice's length is not 4 or 16", addr)
 	}
 	if host.IsIpv6 {
 		return &syscall.SockaddrInet6{
