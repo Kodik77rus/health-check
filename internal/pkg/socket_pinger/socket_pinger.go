@@ -1,11 +1,11 @@
 package socket_pinger
 
 import (
-	"net/netip"
 	"syscall"
 
 	"github.com/Kodik77rus/health-check/internal/pkg/env"
 	"github.com/Kodik77rus/health-check/internal/pkg/models"
+	"github.com/Kodik77rus/health-check/internal/pkg/utils"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/pkg/errors"
@@ -156,7 +156,11 @@ func (s *SocketPinger) buildSYNPacket(host *models.Host) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (s *SocketPinger) sendWithTimeout(remoteSockAddr syscall.Sockaddr, tcpPacket []byte, Ipv6 bool) error {
+func (s *SocketPinger) sendWithTimeout(
+	remoteSockAddr syscall.Sockaddr,
+	tcpPacket []byte,
+	Ipv6 bool,
+) error {
 	if err := syscall.SetsockoptTimeval(
 		s.socketFd,
 		syscall.SOL_SOCKET,
@@ -182,9 +186,9 @@ func (s *SocketPinger) closeSocket() error {
 }
 
 func buildRemoteSockInetAddr(host *models.Host) (syscall.Sockaddr, error) {
-	addr, ok := netip.AddrFromSlice(host.IP)
-	if !ok {
-		return nil, errors.Errorf("remote host %v slice's length is not 4 or 16", addr)
+	addr, err := utils.AddrFromSlice(host.IP)
+	if err != nil {
+		return nil, err
 	}
 	if host.IsIpv6 {
 		return &syscall.SockaddrInet6{

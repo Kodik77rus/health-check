@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/Kodik77rus/health-check/internal/app/health_check"
-	"github.com/Kodik77rus/health-check/internal/pkg/docker_stats"
+	"github.com/Kodik77rus/health-check/internal/pkg/docker_controller"
 	"github.com/Kodik77rus/health-check/internal/pkg/env"
 	"github.com/Kodik77rus/health-check/internal/pkg/postgres"
 	"github.com/Kodik77rus/health-check/internal/pkg/socket_pinger"
@@ -42,7 +42,7 @@ func start() error {
 	health_check.InitHealthCheck(
 		postgres,
 		socketPinger,
-		docker_stats.DockerStat{},
+		docker_controller.DockerController{},
 		mux,
 	)
 

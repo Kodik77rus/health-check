@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/Kodik77rus/health-check/internal/pkg/docker_stats"
+	"github.com/Kodik77rus/health-check/internal/pkg/docker_controller"
 	"github.com/Kodik77rus/health-check/internal/pkg/models"
 	"github.com/Kodik77rus/health-check/internal/pkg/postgres"
 	"github.com/Kodik77rus/health-check/internal/pkg/socket_pinger"
@@ -18,7 +18,7 @@ type HealthCheck struct{}
 func InitHealthCheck(
 	postgres *postgres.Postgres,
 	socketPinger *socket_pinger.SocketPinger,
-	dockerStat docker_stats.DockerStat,
+	dockerController docker_controller.DockerController,
 	mu *http.ServeMux,
 ) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +44,7 @@ func InitHealthCheck(
 					go func(host *models.Host) {
 						defer wg.Done()
 						if err := socketPinger.Ping(host); err != nil {
-							log.Debug().Err(err).Interface("host", host).Msg("ping host error")
+							log.Error().Err(err).Interface("host", host).Msg("ping host error")
 							mu.Lock()
 							hostMap[host.IP.String()] = "not ok"
 							mu.Unlock()
@@ -59,7 +59,7 @@ func InitHealthCheck(
 				wg.Wait()
 			}
 
-			containersInfo, err := dockerStat.GetContainersInfo()
+			containersInfo, err := dockerController.GetContainersInfo()
 			if err != nil {
 				log.Error().Err(err).Msg("can't check docker containers")
 				w.WriteHeader(http.StatusInternalServerError)
@@ -90,7 +90,12 @@ func InitHealthCheck(
 			}
 
 			w.Header().Set("Content-Type", "application/json")
-			w.Write(resp)
+
+			if _, err := w.Write(resp); err != nil {
+				log.Error().Err(err).Interface("health check", respMsg).Msg("can't send response msg")
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 		case http.MethodPost:
 			body, err := ioutil.ReadAll(r.Body)
 			if err != nil {

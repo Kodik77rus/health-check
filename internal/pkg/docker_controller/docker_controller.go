@@ -1,4 +1,4 @@
-package docker_stats
+package docker_controller
 
 import (
 	"context"
@@ -10,6 +10,8 @@ import (
 	"github.com/Kodik77rus/health-check/internal/pkg/utils"
 )
 
+type DockerController struct{}
+
 type ContainerInfo struct {
 	ID     string   `json:"Id"`
 	Name   []string `json:"Names"`
@@ -18,9 +20,7 @@ type ContainerInfo struct {
 	Status string   `json:"Status"`
 }
 
-type DockerStat struct{}
-
-func (d DockerStat) GetContainersInfo() ([]*ContainerInfo, error) {
+func (d DockerController) GetContainersInfo() ([]*ContainerInfo, error) {
 	var dialer net.Dialer
 
 	c := &http.Client{
@@ -56,14 +56,14 @@ func (d DockerStat) GetContainersInfo() ([]*ContainerInfo, error) {
 		return nil, err
 	}
 
-	decocdedData, err := utils.Base64Decode(body)
+	decodedData, err := utils.Base64Decode(body)
 	if err != nil {
 		return nil, err
 	}
 
 	var dockerContainers []*ContainerInfo
 
-	if err := utils.JsonUnmarshal(decocdedData, &dockerContainers); err != nil {
+	if err := utils.JsonUnmarshal(decodedData, &dockerContainers); err != nil {
 		return nil, err
 	}
 
