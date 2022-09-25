@@ -27,6 +27,7 @@ func start() error {
 	if err != nil {
 		return errors.Wrap(err, "can't load env")
 	}
+	fmt.Print(env)
 
 	initZeroLogger(env)
 
